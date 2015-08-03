@@ -233,9 +233,9 @@ namespace TestOne
 
                 }
 
+                Debug.WriteLine("CheckDistaceEnd!");
+                ///55555555555555555555555
 
-
- 
             }
 
         }
