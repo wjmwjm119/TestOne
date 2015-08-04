@@ -17,7 +17,7 @@
                 <TextBox x:Name="nameInput" Width="210" HorizontalAlignment="Left"/>
                 <Button x:Name="inputButton" Content="Say &quot;Hello&quot;" Click="Button_Click"/>
             </StackPanel>
-            <TextBlock x:Name="greetingOutput"/>
+            <TextBlock  x:Name ="greetingOutput" />
         </StackPanel>
 
     </Grid>

@@ -31,6 +31,10 @@ namespace TestOne
         //key 1,2,3 GPIO 5,6,13
 
 
+        //
+        public string ttt;
+
+
         private GpioOpenStatus gpioOpenStatus;
         private GpioController gpioController;
         private GpioPin pinLed;
@@ -44,7 +48,8 @@ namespace TestOne
         private GpioPin trig;
         private GpioPin echo;
 
-
+        private const int voiceDete_Pin = 27;
+        private GpioPin voiceDete;
 
         // stopwatch to time the echo on the distance sensor
         Stopwatch sw = new Stopwatch();
@@ -58,8 +63,11 @@ namespace TestOne
 
         public MainPage()
         {
+
+
             this.InitializeComponent();
 
+            greetingOutput.Text = "DDD";
 
             timer = new DispatcherTimer();
             timer.Interval = TimeSpan.FromMilliseconds(200);
@@ -69,14 +77,13 @@ namespace TestOne
 
             if (InitGPIO())
             {
-
-
-
                 timer.Start();
             }
 
 
         }
+
+
 
         private bool InitGPIO()
         {
@@ -109,6 +116,9 @@ namespace TestOne
                 echo.SetDriveMode(GpioPinDriveMode.Input);
                 trig.Write(GpioPinValue.Low);
 
+                voiceDete = gpioController.OpenPin(voiceDete_Pin);
+                voiceDete.SetDriveMode(GpioPinDriveMode.Input);
+                voiceDete.ValueChanged+= VoiceDete;
 
 
                 return true;
@@ -138,7 +148,10 @@ namespace TestOne
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            Debug.WriteLine("AAA");
+
+            DistanceReading();
+
+            greetingOutput.Text += distanceToObstacle.ToString()+"\n";
 
 
         }
@@ -150,17 +163,36 @@ namespace TestOne
 
             if (gpioPin.Read() == GpioPinValue.Low)
             {
+
                 Debug.WriteLine("LED ON");
                 pinLed.Write(GpioPinValue.High);
                 DistanceReading();
+
             }
             else
             {
+
                 pinLed.Write(GpioPinValue.Low);
 
             }
 
         }
+
+        private void VoiceDete(GpioPin gpioPin, GpioPinValueChangedEventArgs e)
+        {
+
+            if (gpioPin.Read() == GpioPinValue.Low)
+            {
+
+                Debug.WriteLine("VoiceDete");
+
+                DistanceReading();
+
+                ttt = "5555555555555555555555555555555555555555555";
+            }
+
+        }
+
 
         private void DistanceReading()
         {
@@ -234,7 +266,6 @@ namespace TestOne
                 }
 
 
-                Debug.WriteLine("44444");
             }
 
         }
