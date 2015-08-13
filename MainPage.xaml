@@ -18,6 +18,8 @@
                 <Button x:Name="inputButton" Content="Say &quot;Hello&quot;" Click="Button_Click"/>
             </StackPanel>
             <TextBlock  x:Name ="greetingOutput" />
+            <TextBox x:Name="Display_TextBoxLine0" HorizontalAlignment="Left" Margin="0,120,0,0" Text="Hello SPI!" VerticalAlignment="Top"  />
+
         </StackPanel>
 
     </Grid>
