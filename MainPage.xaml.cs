@@ -104,7 +104,7 @@ namespace TestOne
         private static readonly byte[] CMD_COMSCANDIR = { 0xC8 };               /* Set the COM scan direction to inverse, which flips the screen vertically        */
         private static readonly byte[] CMD_RESETCOLADDR = { 0x21, 0x00, 0x7F }; /* Reset the column address pointer                         */
         private static readonly byte[] CMD_RESETPAGEADDR = { 0x22, 0x00, 0x07 };/* Reset the page address pointer                           */
-
+        // Contrast control register  80H
 
 
 
@@ -222,11 +222,13 @@ namespace TestOne
                 throw new Exception("GPIO does not exist on the current system.");
             }
 
+            //A0
             /* Initialize a pin as output for the Data/Command line on the display  */
             DataCommandPin = IoController.OpenPin(DATA_COMMAND_PIN);
             DataCommandPin.Write(GpioPinValue.High);
             DataCommandPin.SetDriveMode(GpioPinDriveMode.Output);
 
+            //
             /* Initialize a pin as output for the hardware Reset line on the display */
             ResetPin = IoController.OpenPin(RESET_PIN);
             ResetPin.Write(GpioPinValue.High);
@@ -265,10 +267,10 @@ namespace TestOne
             {
                 /* See the datasheet for more details on these commands: http://www.adafruit.com/datasheets/SSD1306.pdf             */
                 await ResetDisplay();                   /* Perform a hardware reset on the display                                  */
-                DisplaySendCommand(CMD_CHARGEPUMP_ON);  /* Turn on the internal charge pump to provide power to the screen          */
-                DisplaySendCommand(CMD_MEMADDRMODE);    /* Set the addressing mode to "horizontal"                                  */
-                DisplaySendCommand(CMD_SEGREMAP);       /* Flip the display horizontally, so it's easier to read on the breadboard  */
-                DisplaySendCommand(CMD_COMSCANDIR);     /* Flip the display vertically, so it's easier to read on the breadboard    */
+ //               DisplaySendCommand(CMD_CHARGEPUMP_ON);  /* Turn on the internal charge pump to provide power to the screen          */
+ //               DisplaySendCommand(CMD_MEMADDRMODE);    /* Set the addressing mode to "horizontal"                                  */
+ //               DisplaySendCommand(CMD_SEGREMAP);       /* Flip the display horizontally, so it's easier to read on the breadboard  */
+ //               DisplaySendCommand(CMD_COMSCANDIR);     /* Flip the display vertically, so it's easier to read on the breadboard    */
                 DisplaySendCommand(CMD_DISPLAY_ON);     /* Turn the display on                                                      */
             }
             catch (Exception ex)
@@ -301,9 +303,9 @@ namespace TestOne
         private async Task ResetDisplay()
         {
             ResetPin.Write(GpioPinValue.Low);   /* Put display into reset                       */
-            await Task.Delay(1);                /* Wait at least 3uS (We wait 1mS since that is the minimum delay we can specify for Task.Delay() */
+            await Task.Delay(100);                /* Wait at least 3uS (We wait 1mS since that is the minimum delay we can specify for Task.Delay() */
             ResetPin.Write(GpioPinValue.High);  /* Bring display out of reset                   */
-            await Task.Delay(100);              /* Wait at least 100mS before sending commands  */
+            await Task.Delay(200);              /* Wait at least 100mS before sending commands  */
         }
 
 
@@ -313,7 +315,7 @@ namespace TestOne
             {
                 InitGpio3();             /* Initialize the GPIO controller and GPIO pins */
                 await InitSpi();        /* Initialize the SPI controller                */
-            //    await InitDisplay();    /* Initialize the display                       *///
+                await InitDisplay();    /* Initialize the display                       */
             }
             /* If initialization fails, display the exception and stop running */
             catch (Exception ex)
@@ -333,7 +335,7 @@ namespace TestOne
  //           Display_TextBoxLine3.TextChanged += Display_TextBox_TextChanged;
 
             /* Manually update the display once after initialization*/
-            DisplayTextBoxContents();
+ //           DisplayTextBoxContents();
 
             greetingOutput.Text = "Status: Initialized";
 
