@@ -81,30 +81,19 @@ namespace TestOne
         private const Int32 RESET_PIN = 23;                 /* We use GPIO 23 since it's conveniently near the SPI pins */
 
         /* This sample is intended to be used with the following OLED display: http://www.adafruit.com/product/938 */
-        private const UInt32 SCREEN_WIDTH_PX = 128;                         /* Number of horizontal pixels on the display */
+        private const UInt32 SCREEN_WIDTH_PX = 132;                         /* Number of horizontal pixels on the display */
         private const UInt32 SCREEN_HEIGHT_PX = 64;                         /* Number of vertical pixels on the display   */
         private const UInt32 SCREEN_HEIGHT_PAGES = SCREEN_HEIGHT_PX / 8;    /* The vertical pixels on this display are arranged into 'pages' of 8 pixels each */
-        private byte[,] DisplayBuffer =
-            new byte[SCREEN_WIDTH_PX, SCREEN_HEIGHT_PAGES];                 /* A local buffer we use to store graphics data for the screen                    */
-        private byte[] SerializedDisplayBuffer =
-            new byte[SCREEN_WIDTH_PX * SCREEN_HEIGHT_PAGES];                /* A temporary buffer used to prepare graphics data for sending over SPI          */
+        byte[] tempUpBuffer = new byte[SCREEN_WIDTH_PX];
+        byte[] tempDownBuffer = new byte[SCREEN_WIDTH_PX];
+
+        private byte[] SerializedDisplayBuffer = new byte[SCREEN_WIDTH_PX * SCREEN_HEIGHT_PAGES];                /* A temporary buffer used to prepare graphics data for sending over SPI          */
 
         /* Definitions for SPI and GPIO */
         private SpiDevice SpiDisplay;
         private GpioController IoController;
         private GpioPin DataCommandPin;
         private GpioPin ResetPin;
-
-        /* Display commands. See the datasheet for details on commands: http://www.adafruit.com/datasheets/SSD1306.pdf                      */
-        private static readonly byte[] CMD_DISPLAY_OFF = { 0xAE };              /* Turns the display off                                    */
-        private static readonly byte[] CMD_DISPLAY_ON = { 0xAF };               /* Turns the display on                                     */
-        private static readonly byte[] CMD_CHARGEPUMP_ON = { 0x8D, 0x14 };      /* Turn on internal charge pump to supply power to display  */
-        private static readonly byte[] CMD_MEMADDRMODE = { 0x20, 0x00 };        /* Horizontal memory mode                                   */
-        private static readonly byte[] CMD_SEGREMAP = { 0xA1 };                 /* Remaps the segments, which has the effect of mirroring the display horizontally */
-        private static readonly byte[] CMD_COMSCANDIR = { 0xC8 };               /* Set the COM scan direction to inverse, which flips the screen vertically        */
-        private static readonly byte[] CMD_RESETCOLADDR = { 0x21, 0x00, 0x7F }; /* Reset the column address pointer                         */
-        private static readonly byte[] CMD_RESETPAGEADDR = { 0x22, 0x00, 0x07 };/* Reset the page address pointer                           */
-        // Contrast control register  80H
 
 
 
@@ -265,13 +254,32 @@ namespace TestOne
             /* Initialize the display */
             try
             {
-                /* See the datasheet for more details on these commands: http://www.adafruit.com/datasheets/SSD1306.pdf             */
-                await ResetDisplay();                   /* Perform a hardware reset on the display                                  */
- //               DisplaySendCommand(CMD_CHARGEPUMP_ON);  /* Turn on the internal charge pump to provide power to the screen          */
- //               DisplaySendCommand(CMD_MEMADDRMODE);    /* Set the addressing mode to "horizontal"                                  */
- //               DisplaySendCommand(CMD_SEGREMAP);       /* Flip the display horizontally, so it's easier to read on the breadboard  */
- //               DisplaySendCommand(CMD_COMSCANDIR);     /* Flip the display vertically, so it's easier to read on the breadboard    */
-                DisplaySendCommand(CMD_DISPLAY_ON);     /* Turn the display on                                                      */
+                ResetPin.Write(GpioPinValue.Low);   /* Put display into reset                       */
+                await Task.Delay(10);                /* Wait at least 3uS (We wait 1mS since that is the minimum delay we can specify for Task.Delay() */
+                ResetPin.Write(GpioPinValue.High);  /* Bring display out of reset                   */
+                await Task.Delay(100);              /* Wait at least 100mS before sending commands  */
+
+                ClearScreen();
+
+                DataCommandPin.Write(GpioPinValue.Low);
+                SpiDisplay.Write(new byte[] { 0x10 });//输入返回第一行
+                SpiDisplay.Write(new byte[] { 0x00 });//输入返回第一行
+                SpiDisplay.Write(new byte[] { 0xA0 });
+                SpiDisplay.Write(new byte[]{0xAF});     /* Turn the display on                                                      */
+                DataCommandPin.Write(GpioPinValue.High);
+
+                
+                                DataCommandPin.Write(GpioPinValue.Low);
+                                SpiDisplay.Write(BitConverter.GetBytes(176));
+                                DataCommandPin.Write(GpioPinValue.High);
+
+                                SpiDisplay.Write(new byte[] { 0x00, 0x00 });
+                                SpiDisplay.Write(new byte[] { 0xFF, 0xFF, 0xFF, 0x00, 0xFF,0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0xFF });
+                
+
+                DisplayString("6gdf Display Initialization Failed  DataCommandPin  microprocessor interface as an example ");
+
+
             }
             catch (Exception ex)
             {
@@ -279,34 +287,99 @@ namespace TestOne
             }
         }
 
-
-
-
-
-        /* Send graphics data to the screen */
-        private void DisplaySendData(byte[] Data)
+        void ClearScreen()
         {
-            /* When the Data/Command pin is high, SPI data is treated as graphics data  */
-            DataCommandPin.Write(GpioPinValue.High);
-            SpiDisplay.Write(Data);
+            Array.Clear(SerializedDisplayBuffer, 0, SerializedDisplayBuffer.Length);
+
+            
+            for (int i = 0; i < SCREEN_HEIGHT_PAGES; i++)
+            {
+                //0x0B0 page adress
+                int page=i+176;
+
+                DataCommandPin.Write(GpioPinValue.Low);
+                SpiDisplay.Write(BitConverter.GetBytes(page));
+                DataCommandPin.Write(GpioPinValue.High);
+
+                SpiDisplay.Write(SerializedDisplayBuffer);
+            }
         }
 
-        /* Send commands to the screen */
-        private void DisplaySendCommand(byte[] Command)
+        void DisplayString(string str)
         {
-            /* When the Data/Command pin is low, SPI data is treated as commands for the display controller */
+            int lineCount=0;//两个page拼成一行
+            int currentPixeWidth=0;
+
+            Array.Clear(tempUpBuffer, 0, tempUpBuffer.Length);//清空缓存
+            Array.Clear(tempDownBuffer, 0, tempDownBuffer.Length);//清空缓存
+
+            FontCharacterDescriptor[] fontDesGroup = new FontCharacterDescriptor[str.Length];
+
+
+            for (int i = 0; i < str.Length; i++)
+            {
+                fontDesGroup[i] = DisplayFontTable.GetCharacterDescriptor(str[i]);
+
+
+                if (currentPixeWidth < 110)
+                {
+                    Array.Copy(fontDesGroup[i].CharacterDataUp, 0, tempUpBuffer, currentPixeWidth, fontDesGroup[i].CharacterWidthPx);
+                    Array.Copy(fontDesGroup[i].CharacterDataDown, 0, tempDownBuffer, currentPixeWidth, fontDesGroup[i].CharacterWidthPx);
+
+                }
+                else
+                {
+                    Array.Copy(fontDesGroup[i].CharacterDataUp, 0, tempUpBuffer, currentPixeWidth, fontDesGroup[i].CharacterWidthPx);
+                    Array.Copy(fontDesGroup[i].CharacterDataDown, 0, tempDownBuffer, currentPixeWidth, fontDesGroup[i].CharacterWidthPx);
+
+                    DisplayWriteLine(ref tempUpBuffer, lineCount, 0);
+                    DisplayWriteLine(ref tempDownBuffer, lineCount, 1);
+
+                    lineCount++;
+
+                    if (lineCount > 3)
+                    {
+                        break;
+                    }
+
+                    currentPixeWidth =0;
+
+                }
+
+                currentPixeWidth += fontDesGroup[i].CharacterWidthPx;
+
+
+                if (i == str.Length-1)
+                {
+                    DisplayWriteLine(ref tempUpBuffer, lineCount, 0);
+                    DisplayWriteLine(ref tempDownBuffer, lineCount, 1);
+                }
+
+
+            }
+
+        }
+
+        void DisplayWriteLine(ref byte[] buffer,int lineCount,int offset)
+        {
+
             DataCommandPin.Write(GpioPinValue.Low);
-            SpiDisplay.Write(Command);
+           SpiDisplay.Write(new byte[] { 0x10 });//输入返回第一行
+            SpiDisplay.Write(new byte[] { 0x00 });//输入返回第一行
+            SpiDisplay.Write(BitConverter.GetBytes(176 + lineCount * 2+offset));
+            DataCommandPin.Write(GpioPinValue.High);
+
+            SpiDisplay.Write(new byte[] { 0x00, 0x00 });
+            SpiDisplay.Write(buffer);
+
+            Array.Clear(buffer, 0, buffer.Length);//清空缓存
+
         }
 
-        /* Perform a hardware reset of the display */
-        private async Task ResetDisplay()
-        {
-            ResetPin.Write(GpioPinValue.Low);   /* Put display into reset                       */
-            await Task.Delay(100);                /* Wait at least 3uS (We wait 1mS since that is the minimum delay we can specify for Task.Delay() */
-            ResetPin.Write(GpioPinValue.High);  /* Bring display out of reset                   */
-            await Task.Delay(200);              /* Wait at least 100mS before sending commands  */
-        }
+
+
+
+
 
 
         private async void InitSpiDisplay()
@@ -329,172 +402,19 @@ namespace TestOne
             }
 
             /* Register a handler so we update the SPI display anytime the user edits a textbox */
-//              Display_TextBoxLine0.TextChanged += Display_TextBox_TextChanged;
- //           Display_TextBoxLine1.TextChanged += Display_TextBox_TextChanged;
- //           Display_TextBoxLine2.TextChanged += Display_TextBox_TextChanged;
- //           Display_TextBoxLine3.TextChanged += Display_TextBox_TextChanged;
-
-            /* Manually update the display once after initialization*/
- //           DisplayTextBoxContents();
+            // Display_TextBoxLine0.TextChanged += Display_TextBox_TextChanged;
 
             greetingOutput.Text = "Status: Initialized";
-
-
         }
 
 
 
 
 
-        /* Writes the Display Buffer out to the physical screen for display */
-        private void DisplayUpdate()
-        {
-            int Index = 0;
-            /* We convert our 2-dimensional array into a serialized string of bytes that will be sent out to the display */
-            for (int PageY = 0; PageY < SCREEN_HEIGHT_PAGES; PageY++)
-            {
-                for (int PixelX = 0; PixelX < SCREEN_WIDTH_PX; PixelX++)
-                {
-                    SerializedDisplayBuffer[Index] = DisplayBuffer[PixelX, PageY];
-                    Index++;
-                }
-            }
 
-            /* Write the data out to the screen */
-            DisplaySendCommand(CMD_RESETCOLADDR);         /* Reset the column address pointer back to 0 */
-            DisplaySendCommand(CMD_RESETPAGEADDR);        /* Reset the page address pointer back to 0   */
-            DisplaySendData(SerializedDisplayBuffer);     /* Send the data over SPI                     */
-        }
 
-        /* 
-         * NAME:        WriteLineDisplayBuf
-         * DESCRIPTION: Writes a string to the display screen buffer (DisplayUpdate() needs to be called subsequently to output the buffer to the screen)
-         * INPUTS:
-         *
-         * Line:      The string we want to render. In this sample, special characters like tabs and newlines are not supported.
-         * Col:       The horizontal column we want to start drawing at. This is equivalent to the 'X' axis pixel position.
-         * Row:       The vertical row we want to write to. The screen is divided up into 4 rows of 16 pixels each, so valid values for Row are 0,1,2,3.
-         *
-         * RETURN VALUE:
-         * None. We simply return when we encounter characters that are out-of-bounds or aren't available in the font.
-         */
-        private void WriteLineDisplayBuf(String Line, UInt32 Col, UInt32 Row)
-        {
-            UInt32 CharWidth = 0;
-            foreach (Char Character in Line)
-            {
-                CharWidth = WriteCharDisplayBuf(Character, Col, Row);
-                Col += CharWidth;   /* Increment the column so we can track where to write the next character   */
-                if (CharWidth == 0) /* Quit if we encounter a character that couldn't be printed                */
-                {
-                    return;
-                }
-            }
-        }
+ 
 
-        /* 
-         * NAME:        WriteCharDisplayBuf
-         * DESCRIPTION: Writes one character to the display screen buffer (DisplayUpdate() needs to be called subsequently to output the buffer to the screen)
-         * INPUTS:
-         *
-         * Character: The character we want to draw. In this sample, special characters like tabs and newlines are not supported.
-         * Col:       The horizontal column we want to start drawing at. This is equivalent to the 'X' axis pixel position.
-         * Row:       The vertical row we want to write to. The screen is divided up into 4 rows of 16 pixels each, so valid values for Row are 0,1,2,3.
-         *
-         * RETURN VALUE:
-         * We return the number of horizontal pixels used. This value is 0 if Row/Col are out-of-bounds, or if the character isn't available in the font.
-         */
-        private UInt32 WriteCharDisplayBuf(Char Chr, UInt32 Col, UInt32 Row)
-        {
-            /* Check that we were able to find the font corresponding to our character */
-            FontCharacterDescriptor CharDescriptor = DisplayFontTable.GetCharacterDescriptor(Chr);
-            if (CharDescriptor == null)
-            {
-                return 0;
-            }
-
-            /* Make sure we're drawing within the boundaries of the screen buffer */
-            UInt32 MaxRowValue = (SCREEN_HEIGHT_PAGES / DisplayFontTable.FontHeightBytes) - 1;
-            UInt32 MaxColValue = SCREEN_WIDTH_PX;
-            if (Row > MaxRowValue)
-            {
-                return 0;
-            }
-            if ((Col + CharDescriptor.CharacterWidthPx + DisplayFontTable.FontCharSpacing) > MaxColValue)
-            {
-                return 0;
-            }
-
-            UInt32 CharDataIndex = 0;
-            UInt32 StartPage = Row * 2;
-            UInt32 EndPage = StartPage + CharDescriptor.CharacterHeightBytes;
-            UInt32 StartCol = Col;
-            UInt32 EndCol = StartCol + CharDescriptor.CharacterWidthPx;
-            UInt32 CurrentPage = 0;
-            UInt32 CurrentCol = 0;
-
-            /* Copy the character image into the display buffer */
-            for (CurrentPage = StartPage; CurrentPage < EndPage; CurrentPage++)
-            {
-                for (CurrentCol = StartCol; CurrentCol < EndCol; CurrentCol++)
-                {
-                    DisplayBuffer[CurrentCol, CurrentPage] = CharDescriptor.CharacterData[CharDataIndex];
-                    CharDataIndex++;
-                }
-            }
-
-            /* Pad blank spaces to the right of the character so there exists space between adjacent characters */
-            for (CurrentPage = StartPage; CurrentPage < EndPage; CurrentPage++)
-            {
-                for (; CurrentCol < EndCol + DisplayFontTable.FontCharSpacing; CurrentCol++)
-                {
-                    DisplayBuffer[CurrentCol, CurrentPage] = 0x00;
-                }
-            }
-
-            /* Return the number of horizontal pixels used by the character */
-            return CurrentCol - StartCol;
-        }
-
-        /* Sets all pixels in the screen buffer to 0 */
-        private void ClearDisplayBuf()
-        {
-            Array.Clear(DisplayBuffer, 0, DisplayBuffer.Length);
-        }
-
-        /* Update the SPI display to mirror the textbox contents */
-        private void DisplayTextBoxContents()
-        {
-            try
-            {
-                ClearDisplayBuf();  /* Blank the display buffer             */
-                WriteLineDisplayBuf(Display_TextBoxLine0.Text, 0, 0);
- //               WriteLineDisplayBuf(Display_TextBoxLine1.Text, 0, 1);
- //               WriteLineDisplayBuf(Display_TextBoxLine2.Text, 0, 2);
- //               WriteLineDisplayBuf(Display_TextBoxLine3.Text, 0, 3);
-                DisplayUpdate();    /* Write our changes out to the display */
-            }
-            /* Show an error if we can't update the display */
-            catch (Exception ex)
-            {
-                greetingOutput.Text = "Status: Failed to update display";
-                greetingOutput.Text = "\nException: " + ex.Message;
-            }
-        }
-
-        /* Updates the display when the textbox contents change */
-        private void Display_TextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            DisplayTextBoxContents();
-        }
-
-        private void MainPage_Unloaded(object sender, object args)
-        {
-            /* Cleanup */
-            SpiDisplay.Dispose();
-            ResetPin.Dispose();
-            DataCommandPin.Dispose();
-        }
 
 
 
