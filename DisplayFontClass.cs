@@ -13,27 +13,29 @@ namespace DisplayFont
     /* FontCharacterDescripter contains font information for a  single character */
     public class FontCharacterDescriptor
     {
-        public  char Character;
-        public  Int32 CharacterWidthPx;
-        public  byte[] CharacterDataUp;
-        public  byte[] CharacterDataDown;
+        public  char character;
+        public  Int32 characterWidthPx;
+        public  byte[] characterDataUp;
+        public  byte[] characterDataDown;
 
 
         public FontCharacterDescriptor(Char Chr, byte[] CharData)
         {
-            Character = Chr;
-            CharacterWidthPx = (CharData.Length / 2)+1;
+            character = Chr;
+            characterWidthPx = (CharData.Length / 2)+1;
 
-            CharacterDataUp = new byte[CharacterWidthPx];
-            CharacterDataDown =new byte[CharacterWidthPx];
+            characterDataUp = new byte[characterWidthPx];
+            characterDataDown =new byte[characterWidthPx];
 
-            Array.Copy(CharData, 0, CharacterDataUp, 0, CharacterWidthPx-1);
-            Array.Copy(CharData, CharacterWidthPx-1, CharacterDataDown, 0, CharacterWidthPx-1);
+            Array.Copy(CharData, 0, characterDataUp, 0, characterWidthPx-1);
+            Array.Copy(CharData, characterWidthPx-1, characterDataDown, 0, characterWidthPx-1);
 
-   //         Debug.WriteLine(CharacterDataUp[0].ToString());
-   //         Debug.WriteLine(CharacterDataDown[0].ToString());
+   //      Debug.WriteLine(characterDataUp[0].ToString());
+   //      Debug.WriteLine(characterDataDown[0].ToString());
 
-            // CharacterData = CharData;
+   //      CharacterData = CharData;
+
+
         }
     }
 
@@ -41,11 +43,11 @@ namespace DisplayFont
     public static class DisplayFontTable
     {
         /* Takes and returns the character descriptor for the corresponding Char if it exists */
-        public static FontCharacterDescriptor GetCharacterDescriptor(Char Chr)
+        public static  FontCharacterDescriptor GetCharacterDescriptor(Char Chr)
         {
             foreach (FontCharacterDescriptor CharDescriptor in FontTable)
             {
-                if (CharDescriptor.Character == Chr)
+                if (CharDescriptor.character == Chr)
                 {
                     return CharDescriptor;
                 }

@@ -20,8 +20,8 @@ using Windows.Devices.Gpio;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
-using DisplayFont;
-
+//using DisplayFont;
+using WJMIOT;
 
 
 
@@ -39,17 +39,29 @@ namespace TestOne
         //key 1,2,3 GPIO 5,6,13
 
 
-        //
-        public string ttt;
 
 
-        private GpioOpenStatus gpioOpenStatus;
+
+
         private GpioController gpioController;
+        string oledOutputInfo;
+
+
+        /////////////////////////////////
+        /////////////////////////////////
+        /////////////////////////////////
+
+
+
         private GpioPin pinLed;
         private GpioPin pinKeyOne;
         private GpioPinValue pinValue;
         private DispatcherTimer timer;
 
+
+        /////////////////////////////////
+        /////////////////////////////////
+        /////////////////////////////////
         // specify which GPIO pins are wired to the distance sensor
         private const int Trig_Pin = 23;
         private const int Echo_Pin = 24;
@@ -69,7 +81,7 @@ namespace TestOne
         double distanceToObstacle;
         bool isCheckDistance;
 
-
+        
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         //////////////////////////////////////////////////////////////
@@ -90,11 +102,17 @@ namespace TestOne
         private byte[] SerializedDisplayBuffer = new byte[SCREEN_WIDTH_PX * SCREEN_HEIGHT_PAGES];                /* A temporary buffer used to prepare graphics data for sending over SPI          */
 
         /* Definitions for SPI and GPIO */
-        private SpiDevice SpiDisplay;
-        private GpioController IoController;
+        private SpiDevice spiDevice0;
         private GpioPin DataCommandPin;
         private GpioPin ResetPin;
 
+        //nrf24L01P
+        //1:GND 2:VCC 3:CE 4:CSN 5:SCK 6:MOSI 7:MISO 8:IRQ
+        //P7:4:CSN    P6:25:IRQ
+
+        private SpiDevice spiDevice1;
+        private GpioPin nrf_CSN_Pin;
+        private GpioPin nrf_IRQ_Pin;
 
 
         public MainPage()
@@ -102,27 +120,249 @@ namespace TestOne
 
             this.InitializeComponent();
 
-            greetingOutput.Text = "DDD";
-
+            /*
             timer = new DispatcherTimer();
             timer.Interval = TimeSpan.FromMilliseconds(200);
-            //   timer.Tick += Timer_Tick;
+            timer.Tick += Timer_Tick;
 
-            /*
-            if (InitGPIO())
+            if (InitGPIO_Wave())
             {
                 timer.Start();
             }
             */
+            //      InitNRF24L01P();
+            InitOledDisplay();
+
+        }
+
+       
 
 
-            InitSpiDisplay();
+
+
+        ////////////////////////////////
+        /////////////////////////////////////////////////////////////
+        /////////////////////////////
+
+
+            
+
+
+        private async void InitOledDisplay()
+        {
+            try
+            {
+                InitGpio_Display();             /* Initialize the GPIO controller and GPIO pins */
+                 await InitSpi0();        /* Initialize the SPI controller                */
+                 await InitDisplayRegister();    /* Initialize the display                       */
+
+
+            }
+            /* If initialization fails, display the exception and stop running */
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Exception: " + ex.Message);
+                if (ex.InnerException != null)
+                {
+                    Debug.WriteLine("\nInner Exception: " + ex.InnerException.Message);
+                }
+                return;
+            }
+
+            /* Register a handler so we update the SPI display anytime the user edits a textbox */
+            // Display_TextBoxLine0.TextChanged += Display_TextBox_TextChanged;
+
+
+            oledOutputInfo += " OLED Init! ";
+            DisplayString(oledOutputInfo);
+
+
+            InitNRF24L01P();
+
+
+        }
+
+        private void InitGpio_Display()
+        {
+            gpioController = GpioController.GetDefault(); /* Get the default GPIO controller on the system */
+            if (gpioController == null)
+            {
+                throw new Exception("GPIO does not exist on the current system.");
+            }
+
+            //A0
+            /* Initialize a pin as output for the Data/Command line on the display  */
+            DataCommandPin = gpioController.OpenPin(DATA_COMMAND_PIN);
+            DataCommandPin.Write(GpioPinValue.High);
+            DataCommandPin.SetDriveMode(GpioPinDriveMode.Output);
+
+            //
+            /* Initialize a pin as output for the hardware Reset line on the display */
+            ResetPin = gpioController.OpenPin(RESET_PIN);
+            ResetPin.Write(GpioPinValue.High);
+            ResetPin.SetDriveMode(GpioPinDriveMode.Output);
+
+        }
+
+        private async Task InitSpi0()
+        {
+            try
+            {
+                var settings = new SpiConnectionSettings(SPI_CHIP_SELECT_LINE); /* Create SPI initialization settings                               */
+                settings.ClockFrequency = 10000000;                             /* Datasheet specifies maximum SPI clock frequency of 10MHz         */
+                settings.Mode = SpiMode.Mode3;                                  /* The display expects an idle-high clock polarity, we use Mode3    
+                                                                                 * to set the clock polarity and phase to: CPOL = 1, CPHA = 1        */
+
+
+                string spiAqs = SpiDevice.GetDeviceSelector(SPI_CONTROLLER_NAME);       /* Find the selector string for the SPI bus controller          */
+                var devicesInfo = await DeviceInformation.FindAllAsync(spiAqs);         /* Find the SPI bus controller device with our selector string  */
+                spiDevice0 = await SpiDevice.FromIdAsync(devicesInfo[0].Id, settings);  /* Create an SpiDevice with our bus controller and SPI settings */
+
+            }
+            /* If initialization fails, display the exception and stop running */
+            catch (Exception ex)
+            {
+                throw new Exception("SPI Initialization Failed", ex);
+            }
+        }
+
+        private async Task InitDisplayRegister()
+        {
+            /* Initialize the display */
+            try
+            {
+                ResetPin.Write(GpioPinValue.Low);   /* Put display into reset                       */
+                await Task.Delay(10);                /* Wait at least 3uS (We wait 1mS since that is the minimum delay we can specify for Task.Delay() */
+                ResetPin.Write(GpioPinValue.High);  /* Bring display out of reset                   */
+                await Task.Delay(100);              /* Wait at least 100mS before sending commands  */
+
+                ClearScreen();
+
+                DataCommandPin.Write(GpioPinValue.Low);
+                spiDevice0.Write(new byte[] { 0x10 });//输入返回第一行
+                spiDevice0.Write(new byte[] { 0x00 });//输入返回第一行
+                spiDevice0.Write(new byte[] { 0xA0 });
+                spiDevice0.Write(new byte[]{0xAF});     /* Turn the display on                                                      */
+                DataCommandPin.Write(GpioPinValue.High);
+
+
+ 
+                  //        DisplayString("  6gdf Display Initialization Failed  DataCommandPin  microprocessor interface as an example ");
+                //                await Task.Delay(2000);              /* Wait at least 100mS before sending commands  */
+
+                DisplayString("abcdefghijklmnopqrstuvwxyz{|}~");
+
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Display Initialization Failed", ex);
+            }
+        }
+
+        void ClearScreen()
+        {
+            Array.Clear(SerializedDisplayBuffer, 0, SerializedDisplayBuffer.Length);
+
+            
+            for (int i = 0; i < SCREEN_HEIGHT_PAGES; i++)
+            {
+                //0x0B0 page adress
+                int page=i+176;
+
+                DataCommandPin.Write(GpioPinValue.Low);
+                spiDevice0.Write(BitConverter.GetBytes(page));
+                DataCommandPin.Write(GpioPinValue.High);
+
+                spiDevice0.Write(SerializedDisplayBuffer);
+            }
+        }
+
+        void DisplayString(string str)
+        {
+            ClearScreen();
+            int lineCount=0;//两个page拼成一行
+            int currentPixeWidth=0;
+
+            Array.Clear(tempUpBuffer, 0, tempUpBuffer.Length);//清空缓存
+            Array.Clear(tempDownBuffer, 0, tempDownBuffer.Length);//清空缓存
+
+            FontCharacterDescriptor[] fontDesGroup = new FontCharacterDescriptor[str.Length];
+
+
+            for (int i = 0; i < str.Length; i++)
+            {
+                fontDesGroup[i] = DisplayFontTable.GetCharacterDescriptor(str[i]);
+
+ //               Debug.WriteLine(fontDesGroup[i].characterDataUp[0].ToString("X"));
+
+
+                if (currentPixeWidth < 110)
+                {
+                    Array.Copy(fontDesGroup[i].characterDataUp, 0, tempUpBuffer, currentPixeWidth, fontDesGroup[i].characterWidthPx);
+                    Array.Copy(fontDesGroup[i].characterDataDown, 0, tempDownBuffer, currentPixeWidth, fontDesGroup[i].characterWidthPx);
+                    currentPixeWidth += fontDesGroup[i].characterWidthPx;
+                }
+                else
+                {
+                    Array.Copy(fontDesGroup[i].characterDataUp, 0, tempUpBuffer, currentPixeWidth, fontDesGroup[i].characterWidthPx);
+                    Array.Copy(fontDesGroup[i].characterDataDown, 0, tempDownBuffer, currentPixeWidth, fontDesGroup[i].characterWidthPx);
+
+                    DisplayWriteLine(ref tempUpBuffer, lineCount, 0);
+                    DisplayWriteLine(ref tempDownBuffer, lineCount, 1);
+
+                    lineCount++;
+
+                    if (lineCount > 3)
+                    {
+                        break;
+                    }
+
+                    currentPixeWidth =0;
+
+                }
+
+               
+                if (i == str.Length-1)
+                {
+                    DisplayWriteLine(ref tempUpBuffer, lineCount, 0);
+                    DisplayWriteLine(ref tempDownBuffer, lineCount, 1);
+                }
+
+                
+
+
+
+            }
+
+        }
+
+        void DisplayWriteLine(ref byte[] buffer,int lineCount,int offset)
+        {
+
+            DataCommandPin.Write(GpioPinValue.Low);
+            spiDevice0.Write(new byte[] { 0x10 });//输入返回第一行
+            spiDevice0.Write(new byte[] { 0x00 });//输入返回第一行
+            spiDevice0.Write(BitConverter.GetBytes(176 + lineCount * 2+offset));
+            DataCommandPin.Write(GpioPinValue.High);
+
+            spiDevice0.Write(new byte[] { 0x00, 0x00});
+            spiDevice0.Write(buffer);
+
+            Array.Clear(buffer, 0, buffer.Length);//清空缓存
 
         }
 
 
 
-        private bool InitGPIO()
+
+
+
+
+////////////////////////////////
+/////////////////////////////////////////////////////////////
+/////////////////////////////
+
+        private bool InitGPIO_Wave()
         {
             gpioController = GpioController.GetDefault();
 
@@ -155,7 +395,7 @@ namespace TestOne
 
                 voiceDete = gpioController.OpenPin(voiceDete_Pin);
                 voiceDete.SetDriveMode(GpioPinDriveMode.Input);
-                voiceDete.ValueChanged+= VoiceDete;
+                voiceDete.ValueChanged += VoiceDete;
 
 
                 return true;
@@ -163,263 +403,6 @@ namespace TestOne
 
 
         }
-
-
-
-        //  nrf24l01无线
-        //  正面
-        //  8，7
-        //  6，5
-        //  4，3
-        //  2，1
-
-        //1:GND 2:VCC 3:CE 4:CSN 5:SCK 6:MOSI 7:MISO 8:IRQ
-        //P3:22:CSN    P6:25:IRQ
-
-        private bool InitGPIO2()
-        {
-
-            gpioController = GpioController.GetDefault();
-
-
-
-            // Show an error if there is no GPIO controller
-            if (gpioController == null)
-            {
-
-                return false;
-            }
-            else
-            {
- 
-
-    
-
-                return true;
-            }
-
-
-        }
-
-
-        /* Initialize the GPIO */
-        private void InitGpio3()
-        {
-            IoController = GpioController.GetDefault(); /* Get the default GPIO controller on the system */
-            if (IoController == null)
-            {
-                throw new Exception("GPIO does not exist on the current system.");
-            }
-
-            //A0
-            /* Initialize a pin as output for the Data/Command line on the display  */
-            DataCommandPin = IoController.OpenPin(DATA_COMMAND_PIN);
-            DataCommandPin.Write(GpioPinValue.High);
-            DataCommandPin.SetDriveMode(GpioPinDriveMode.Output);
-
-            //
-            /* Initialize a pin as output for the hardware Reset line on the display */
-            ResetPin = IoController.OpenPin(RESET_PIN);
-            ResetPin.Write(GpioPinValue.High);
-            ResetPin.SetDriveMode(GpioPinDriveMode.Output);
-
-        }
-
-
-        private async Task InitSpi()
-        {
-            try
-            {
-                var settings = new SpiConnectionSettings(SPI_CHIP_SELECT_LINE); /* Create SPI initialization settings                               */
-                settings.ClockFrequency = 10000000;                             /* Datasheet specifies maximum SPI clock frequency of 10MHz         */
-                settings.Mode = SpiMode.Mode3;                                  /* The display expects an idle-high clock polarity, we use Mode3    
-                                                                                 * to set the clock polarity and phase to: CPOL = 1, CPHA = 1        */
-
-
-                string spiAqs = SpiDevice.GetDeviceSelector(SPI_CONTROLLER_NAME);       /* Find the selector string for the SPI bus controller          */
-                var devicesInfo = await DeviceInformation.FindAllAsync(spiAqs);         /* Find the SPI bus controller device with our selector string  */
-                SpiDisplay = await SpiDevice.FromIdAsync(devicesInfo[0].Id, settings);  /* Create an SpiDevice with our bus controller and SPI settings */
-
-            }
-            /* If initialization fails, display the exception and stop running */
-            catch (Exception ex)
-            {
-                throw new Exception("SPI Initialization Failed", ex);
-            }
-        }
-
-
-        private async Task InitDisplay()
-        {
-            /* Initialize the display */
-            try
-            {
-                ResetPin.Write(GpioPinValue.Low);   /* Put display into reset                       */
-                await Task.Delay(10);                /* Wait at least 3uS (We wait 1mS since that is the minimum delay we can specify for Task.Delay() */
-                ResetPin.Write(GpioPinValue.High);  /* Bring display out of reset                   */
-                await Task.Delay(100);              /* Wait at least 100mS before sending commands  */
-
-                ClearScreen();
-
-                DataCommandPin.Write(GpioPinValue.Low);
-                SpiDisplay.Write(new byte[] { 0x10 });//输入返回第一行
-                SpiDisplay.Write(new byte[] { 0x00 });//输入返回第一行
-                SpiDisplay.Write(new byte[] { 0xA0 });
-                SpiDisplay.Write(new byte[]{0xAF});     /* Turn the display on                                                      */
-                DataCommandPin.Write(GpioPinValue.High);
-
-                
-                                DataCommandPin.Write(GpioPinValue.Low);
-                                SpiDisplay.Write(BitConverter.GetBytes(176));
-                                DataCommandPin.Write(GpioPinValue.High);
-
-                                SpiDisplay.Write(new byte[] { 0x00, 0x00 });
-                                SpiDisplay.Write(new byte[] { 0xFF, 0xFF, 0xFF, 0x00, 0xFF,0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0xFF });
-                
-
-                DisplayString("6gdf Display Initialization Failed  DataCommandPin  microprocessor interface as an example ");
-
-
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Display Initialization Failed", ex);
-            }
-        }
-
-        void ClearScreen()
-        {
-            Array.Clear(SerializedDisplayBuffer, 0, SerializedDisplayBuffer.Length);
-
-            
-            for (int i = 0; i < SCREEN_HEIGHT_PAGES; i++)
-            {
-                //0x0B0 page adress
-                int page=i+176;
-
-                DataCommandPin.Write(GpioPinValue.Low);
-                SpiDisplay.Write(BitConverter.GetBytes(page));
-                DataCommandPin.Write(GpioPinValue.High);
-
-                SpiDisplay.Write(SerializedDisplayBuffer);
-            }
-        }
-
-        void DisplayString(string str)
-        {
-            int lineCount=0;//两个page拼成一行
-            int currentPixeWidth=0;
-
-            Array.Clear(tempUpBuffer, 0, tempUpBuffer.Length);//清空缓存
-            Array.Clear(tempDownBuffer, 0, tempDownBuffer.Length);//清空缓存
-
-            FontCharacterDescriptor[] fontDesGroup = new FontCharacterDescriptor[str.Length];
-
-
-            for (int i = 0; i < str.Length; i++)
-            {
-                fontDesGroup[i] = DisplayFontTable.GetCharacterDescriptor(str[i]);
-
-
-                if (currentPixeWidth < 110)
-                {
-                    Array.Copy(fontDesGroup[i].CharacterDataUp, 0, tempUpBuffer, currentPixeWidth, fontDesGroup[i].CharacterWidthPx);
-                    Array.Copy(fontDesGroup[i].CharacterDataDown, 0, tempDownBuffer, currentPixeWidth, fontDesGroup[i].CharacterWidthPx);
-
-                }
-                else
-                {
-                    Array.Copy(fontDesGroup[i].CharacterDataUp, 0, tempUpBuffer, currentPixeWidth, fontDesGroup[i].CharacterWidthPx);
-                    Array.Copy(fontDesGroup[i].CharacterDataDown, 0, tempDownBuffer, currentPixeWidth, fontDesGroup[i].CharacterWidthPx);
-
-                    DisplayWriteLine(ref tempUpBuffer, lineCount, 0);
-                    DisplayWriteLine(ref tempDownBuffer, lineCount, 1);
-
-                    lineCount++;
-
-                    if (lineCount > 3)
-                    {
-                        break;
-                    }
-
-                    currentPixeWidth =0;
-
-                }
-
-                currentPixeWidth += fontDesGroup[i].CharacterWidthPx;
-
-
-                if (i == str.Length-1)
-                {
-                    DisplayWriteLine(ref tempUpBuffer, lineCount, 0);
-                    DisplayWriteLine(ref tempDownBuffer, lineCount, 1);
-                }
-
-
-            }
-
-        }
-
-        void DisplayWriteLine(ref byte[] buffer,int lineCount,int offset)
-        {
-
-            DataCommandPin.Write(GpioPinValue.Low);
-           SpiDisplay.Write(new byte[] { 0x10 });//输入返回第一行
-            SpiDisplay.Write(new byte[] { 0x00 });//输入返回第一行
-            SpiDisplay.Write(BitConverter.GetBytes(176 + lineCount * 2+offset));
-            DataCommandPin.Write(GpioPinValue.High);
-
-            SpiDisplay.Write(new byte[] { 0x00, 0x00 });
-            SpiDisplay.Write(buffer);
-
-            Array.Clear(buffer, 0, buffer.Length);//清空缓存
-
-        }
-
-
-
-
-
-
-
-        private async void InitSpiDisplay()
-        {
-            try
-            {
-                InitGpio3();             /* Initialize the GPIO controller and GPIO pins */
-                await InitSpi();        /* Initialize the SPI controller                */
-                await InitDisplay();    /* Initialize the display                       */
-            }
-            /* If initialization fails, display the exception and stop running */
-            catch (Exception ex)
-            {
-                greetingOutput.Text = "Exception: " + ex.Message;
-                if (ex.InnerException != null)
-                {
-                    greetingOutput.Text += "\nInner Exception: " + ex.InnerException.Message;
-                }
-                return;
-            }
-
-            /* Register a handler so we update the SPI display anytime the user edits a textbox */
-            // Display_TextBoxLine0.TextChanged += Display_TextBox_TextChanged;
-
-            greetingOutput.Text = "Status: Initialized";
-        }
-
-
-
-
-
-
-
- 
-
-
-
-
-
-
 
         private void Timer_Tick(object sender, object e)
         {
@@ -443,11 +426,10 @@ namespace TestOne
 
             DistanceReading();
 
-            greetingOutput.Text += distanceToObstacle.ToString()+"\n";
+            DisplayString( distanceToObstacle.ToString()+"\n");
 
 
         }
-
 
         private void KEYoneDown(GpioPin gpioPin, GpioPinValueChangedEventArgs e)
         {
@@ -480,11 +462,9 @@ namespace TestOne
 
                 DistanceReading();
 
-                ttt = "5555555555555555555555555555555555555555555";
             }
 
         }
-
 
         private void DistanceReading()
         {
@@ -560,6 +540,106 @@ namespace TestOne
 
             }
 
+        }
+
+
+
+
+
+        ////////////////////////////////
+        /////////////////////////////////////////////////////////////
+        /////////////////////////////
+
+
+
+
+
+        async void InitNRF24L01P()
+        {
+            InitGPIO_nrf24L01P();
+            await InitSpi1();
+
+
+        }
+
+
+
+
+        //  nrf24L01P无线
+        //  正面
+        //  8，7
+        //  6，5
+        //  4，3
+        //  2，1
+
+        //1:GND 2:VCC 3:CE 4:CSN 5:SCK 6:MOSI 7:MISO 8:IRQ
+        //P7:4:CSN    P6:25:IRQ
+
+        private void  InitGPIO_nrf24L01P()
+        {
+
+            gpioController = GpioController.GetDefault(); /* Get the default GPIO controller on the system */
+            if (gpioController == null)
+            {
+                throw new Exception("GPIO does not exist on the current system.");
+            }
+
+            //A0
+            /* Initialize a pin as output for the Data/Command line on the display  */
+            nrf_CSN_Pin = gpioController.OpenPin(4);
+            nrf_CSN_Pin.Write(GpioPinValue.High);
+            nrf_CSN_Pin.SetDriveMode(GpioPinDriveMode.Output);
+
+            //
+            /* Initialize a pin as output for the hardware Reset line on the display */
+            nrf_IRQ_Pin = gpioController.OpenPin(25);
+            nrf_IRQ_Pin.Write(GpioPinValue.High);
+            nrf_IRQ_Pin.SetDriveMode(GpioPinDriveMode.Output);
+
+
+        }
+
+        private async Task InitSpi1()
+        {
+            try
+            {
+                var settings = new SpiConnectionSettings(SPI_CHIP_SELECT_LINE); /* Create SPI initialization settings                               */
+                settings.ClockFrequency = 10000000;                             /* Datasheet specifies maximum SPI clock frequency of 10MHz         */
+                settings.Mode = SpiMode.Mode3;                                  /* The display expects an idle-high clock polarity, we use Mode3    
+                                                                                 * to set the clock polarity and phase to: CPOL = 1, CPHA = 1        */
+
+
+                string spiAqs = SpiDevice.GetDeviceSelector("SPI1");       /* Find the selector string for the SPI bus controller          */
+                var devicesInfo = await DeviceInformation.FindAllAsync(spiAqs);         /* Find the SPI bus controller device with our selector string  */
+                spiDevice1 = await SpiDevice.FromIdAsync(devicesInfo[0].Id, settings);  /* Create an SpiDevice with our bus controller and SPI settings */
+
+            }
+            /* If initialization fails, display the exception and stop running */
+            catch (Exception ex)
+            {
+                throw new Exception("SPI1 Initialization Failed", ex);
+            }
+
+            oledOutputInfo+= " SPI1 Init!!";
+ //           oledOutputInfo+= spiDevice1.ConnectionSettings.ToString();
+
+            DisplayString(oledOutputInfo);
+
+
+        }
+
+
+        private async Task InitNRF24L01PRegister()
+        {
+            /* Initialize the display */
+            try
+            {
+     
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("NRF24L01P Register Initialization Failed", ex);
+            }
         }
 
 
