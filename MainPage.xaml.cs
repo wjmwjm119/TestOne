@@ -103,8 +103,8 @@ namespace TestOne
 
         /* Definitions for SPI and GPIO */
         private SpiDevice spiDevice0;
-        private GpioPin DataCommandPin;
-        private GpioPin ResetPin;
+        private GpioPin dataCommandPin;
+        private GpioPin resetPin;
 
         //nrf24L01P
         //1:GND 2:VCC 3:CE 4:CSN 5:SCK 6:MOSI 7:MISO 8:IRQ
@@ -198,15 +198,15 @@ namespace TestOne
 
             //A0
             /* Initialize a pin as output for the Data/Command line on the display  */
-            DataCommandPin = gpioController.OpenPin(DATA_COMMAND_PIN);
-            DataCommandPin.Write(GpioPinValue.High);
-            DataCommandPin.SetDriveMode(GpioPinDriveMode.Output);
+            dataCommandPin = gpioController.OpenPin(DATA_COMMAND_PIN);
+            dataCommandPin.Write(GpioPinValue.High);
+            dataCommandPin.SetDriveMode(GpioPinDriveMode.Output);
 
             //
             /* Initialize a pin as output for the hardware Reset line on the display */
-            ResetPin = gpioController.OpenPin(RESET_PIN);
-            ResetPin.Write(GpioPinValue.High);
-            ResetPin.SetDriveMode(GpioPinDriveMode.Output);
+            resetPin = gpioController.OpenPin(RESET_PIN);
+            resetPin.Write(GpioPinValue.High);
+            resetPin.SetDriveMode(GpioPinDriveMode.Output);
 
         }
 
@@ -237,23 +237,27 @@ namespace TestOne
             /* Initialize the display */
             try
             {
-                ResetPin.Write(GpioPinValue.Low);   /* Put display into reset                       */
+                resetPin.Write(GpioPinValue.Low);   /* Put display into reset                       */
                 await Task.Delay(10);                /* Wait at least 3uS (We wait 1mS since that is the minimum delay we can specify for Task.Delay() */
-                ResetPin.Write(GpioPinValue.High);  /* Bring display out of reset                   */
+                resetPin.Write(GpioPinValue.High);  /* Bring display out of reset                   */
                 await Task.Delay(100);              /* Wait at least 100mS before sending commands  */
+
+
+
+
 
                 ClearScreen();
 
-                DataCommandPin.Write(GpioPinValue.Low);
+                dataCommandPin.Write(GpioPinValue.Low);
                 spiDevice0.Write(new byte[] { 0x10 });//输入返回第一行
                 spiDevice0.Write(new byte[] { 0x00 });//输入返回第一行
                 spiDevice0.Write(new byte[] { 0xA0 });
                 spiDevice0.Write(new byte[]{0xAF});     /* Turn the display on                                                      */
-                DataCommandPin.Write(GpioPinValue.High);
+                dataCommandPin.Write(GpioPinValue.High);
 
 
  
-                  //        DisplayString("  6gdf Display Initialization Failed  DataCommandPin  microprocessor interface as an example ");
+                  //        DisplayString("  6gdf Display Initialization Failed  dataCommandPin  microprocessor interface as an example ");
                 //                await Task.Delay(2000);              /* Wait at least 100mS before sending commands  */
 
                 DisplayString("abcdefghijklmnopqrstuvwxyz{|}~");
@@ -275,9 +279,9 @@ namespace TestOne
                 //0x0B0 page adress
                 int page=i+176;
 
-                DataCommandPin.Write(GpioPinValue.Low);
+                dataCommandPin.Write(GpioPinValue.Low);
                 spiDevice0.Write(BitConverter.GetBytes(page));
-                DataCommandPin.Write(GpioPinValue.High);
+                dataCommandPin.Write(GpioPinValue.High);
 
                 spiDevice0.Write(SerializedDisplayBuffer);
             }
@@ -345,11 +349,11 @@ namespace TestOne
         void DisplayWriteLine(ref byte[] buffer,int lineCount,int offset)
         {
 
-            DataCommandPin.Write(GpioPinValue.Low);
+            dataCommandPin.Write(GpioPinValue.Low);
             spiDevice0.Write(new byte[] { 0x10 });//输入返回第一行
             spiDevice0.Write(new byte[] { 0x00 });//输入返回第一行
             spiDevice0.Write(BitConverter.GetBytes(176 + lineCount * 2+offset));
-            DataCommandPin.Write(GpioPinValue.High);
+            dataCommandPin.Write(GpioPinValue.High);
 
             spiDevice0.Write(new byte[] { 0x00, 0x00});
             spiDevice0.Write(buffer);
@@ -631,6 +635,10 @@ namespace TestOne
 
             DisplayString(oledOutputInfo);
 
+
+      //      dataCommandPin.Write(GpioPinValue.Low);
+     //       spiDevice0.Write(new byte[] { 0xA5 });
+     //       dataCommandPin.Write(GpioPinValue.High);
 
         }
 
