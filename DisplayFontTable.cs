@@ -59,105 +59,108 @@ namespace WJMIOT
                 return new FontCharacterDescriptor(4, byteSource);
             }
          }
-/*
-        private static readonly FontCharacterDescriptor[] engFontTable =
-        {
-            new FontCharacterDescriptor(' '),
-            new FontCharacterDescriptor('!' ),
-            new FontCharacterDescriptor('"'),
-            new FontCharacterDescriptor('#'),
-            new FontCharacterDescriptor('$' ),
-            new FontCharacterDescriptor('%'),
-            new FontCharacterDescriptor('&'),
-            new FontCharacterDescriptor('\''),
-            new FontCharacterDescriptor('(' ),
-            new FontCharacterDescriptor(')' ),
-            new FontCharacterDescriptor('*' ),
-            new FontCharacterDescriptor('+'),
-            new FontCharacterDescriptor(',' ),
-            new FontCharacterDescriptor('-' ),
-            new FontCharacterDescriptor('.' ),
-            new FontCharacterDescriptor('/'),
-            new FontCharacterDescriptor('0'),
-            new FontCharacterDescriptor('1' ),
-            new FontCharacterDescriptor('2'),
-            new FontCharacterDescriptor('3'),
-            new FontCharacterDescriptor('4'),
-            new FontCharacterDescriptor('5'),
-            new FontCharacterDescriptor('6'),
-            new FontCharacterDescriptor('7'),
-            new FontCharacterDescriptor('8'),
-            new FontCharacterDescriptor('9' ),
-            new FontCharacterDescriptor(':' ),
-            new FontCharacterDescriptor(';' ),
-            new FontCharacterDescriptor('<' ),
-            new FontCharacterDescriptor('='),
-            new FontCharacterDescriptor('>'),
-            new FontCharacterDescriptor('?' ),
-            new FontCharacterDescriptor('@' ),
-            new FontCharacterDescriptor('A'),
-            new FontCharacterDescriptor('B' ),
-            new FontCharacterDescriptor('C' ),
-            new FontCharacterDescriptor('D'),
-            new FontCharacterDescriptor('E'),
-            new FontCharacterDescriptor('F'),
-            new FontCharacterDescriptor('G' ),
-            new FontCharacterDescriptor('H' ),
-            new FontCharacterDescriptor('I'),
-            new FontCharacterDescriptor('J'),
-            new FontCharacterDescriptor('K' ),
-            new FontCharacterDescriptor('L'),
-            new FontCharacterDescriptor('M'),
-            new FontCharacterDescriptor('N'),
-            new FontCharacterDescriptor('O' ),
-            new FontCharacterDescriptor('P'),
-            new FontCharacterDescriptor('Q' ),
-            new FontCharacterDescriptor('R'),
-            new FontCharacterDescriptor('S'),
-            new FontCharacterDescriptor('T'),
-            new FontCharacterDescriptor('U' ),
-            new FontCharacterDescriptor('V' ),
-            new FontCharacterDescriptor('W'),
-            new FontCharacterDescriptor('X'),
-            new FontCharacterDescriptor('Y'),
-            new FontCharacterDescriptor('Z'),
-            new FontCharacterDescriptor('['),
-            new FontCharacterDescriptor('\\'),
-            new FontCharacterDescriptor('^' ),
-            new FontCharacterDescriptor('_' ),
-            new FontCharacterDescriptor('`' ),
-            new FontCharacterDescriptor('a'),
-            new FontCharacterDescriptor('b' ),
-            new FontCharacterDescriptor('c' ),
-            new FontCharacterDescriptor('d'),
-            new FontCharacterDescriptor('e' ),
-            new FontCharacterDescriptor('f'),
-            new FontCharacterDescriptor('g'),
-            new FontCharacterDescriptor('h'),
-            new FontCharacterDescriptor('i'),
-            new FontCharacterDescriptor('j'),
-            new FontCharacterDescriptor('k' ),
-            new FontCharacterDescriptor('l'),
-            new FontCharacterDescriptor('m' ),
-            new FontCharacterDescriptor('n' ),
-            new FontCharacterDescriptor('o' ),
-            new FontCharacterDescriptor('p' ),
-            new FontCharacterDescriptor('q'),
-            new FontCharacterDescriptor('r' ),
-            new FontCharacterDescriptor('s' ),
-            new FontCharacterDescriptor('t'),
-            new FontCharacterDescriptor('u' ),
-            new FontCharacterDescriptor('v' ),
-            new FontCharacterDescriptor('w'),
-            new FontCharacterDescriptor('x' ),
-            new FontCharacterDescriptor('y'),
-            new FontCharacterDescriptor('z' ),
-            new FontCharacterDescriptor('{'),
-            new FontCharacterDescriptor('|'),
-            new FontCharacterDescriptor('}' ),
-            new FontCharacterDescriptor('~')
-        };
-  */  
+        /*
+                private static readonly FontCharacterDescriptor[] engFontTable =
+                {
+                    new FontCharacterDescriptor(' '),
+                    new FontCharacterDescriptor('!' ),
+                    new FontCharacterDescriptor('"'),
+                    new FontCharacterDescriptor('#'),
+                    new FontCharacterDescriptor('$' ),
+                    new FontCharacterDescriptor('%'),
+                    new FontCharacterDescriptor('&'),
+                    new FontCharacterDescriptor('\''),
+                    new FontCharacterDescriptor('(' ),
+                    new FontCharacterDescriptor(')' ),
+                    new FontCharacterDescriptor('*' ),
+                    new FontCharacterDescriptor('+'),
+                    new FontCharacterDescriptor(',' ),
+                    new FontCharacterDescriptor('-' ),
+                    new FontCharacterDescriptor('.' ),
+                    new FontCharacterDescriptor('/'),
+                    new FontCharacterDescriptor('0'),
+                    new FontCharacterDescriptor('1' ),
+                    new FontCharacterDescriptor('2'),
+                    new FontCharacterDescriptor('3'),
+                    new FontCharacterDescriptor('4'),
+                    new FontCharacterDescriptor('5'),
+                    new FontCharacterDescriptor('6'),
+                    new FontCharacterDescriptor('7'),
+                    new FontCharacterDescriptor('8'),
+                    new FontCharacterDescriptor('9' ),
+                    new FontCharacterDescriptor(':' ),
+                    new FontCharacterDescriptor(';' ),
+                    new FontCharacterDescriptor('<' ),
+                    new FontCharacterDescriptor('='),
+                    new FontCharacterDescriptor('>'),
+                    new FontCharacterDescriptor('?' ),
+                    new FontCharacterDescriptor('@' ),
+                    new FontCharacterDescriptor('A'),
+                    new FontCharacterDescriptor('B' ),
+                    new FontCharacterDescriptor('C' ),
+                    new FontCharacterDescriptor('D'),
+                    new FontCharacterDescriptor('E'),
+                    new FontCharacterDescriptor('F'),
+                    new FontCharacterDescriptor('G' ),
+                    new FontCharacterDescriptor('H' ),
+                    new FontCharacterDescriptor('I'),
+                    new FontCharacterDescriptor('J'),
+                    new FontCharacterDescriptor('K' ),
+                    new FontCharacterDescriptor('L'),
+                    new FontCharacterDescriptor('M'),
+                    new FontCharacterDescriptor('N'),
+                    new FontCharacterDescriptor('O' ),
+                    new FontCharacterDescriptor('P'),
+                    new FontCharacterDescriptor('Q' ),
+                    new FontCharacterDescriptor('R'),
+                    new FontCharacterDescriptor('S'),
+                    new FontCharacterDescriptor('T'),
+                    new FontCharacterDescriptor('U' ),
+                    new FontCharacterDescriptor('V' ),
+                    new FontCharacterDescriptor('W'),
+                    new FontCharacterDescriptor('X'),
+                    new FontCharacterDescriptor('Y'),
+                    new FontCharacterDescriptor('Z'),
+                    new FontCharacterDescriptor('['),
+                    new FontCharacterDescriptor('\\'),
+                    new FontCharacterDescriptor('^' ),
+                    new FontCharacterDescriptor('_' ),
+                    new FontCharacterDescriptor('`' ),
+                    new FontCharacterDescriptor('a'),
+                    new FontCharacterDescriptor('b' ),
+                    new FontCharacterDescriptor('c' ),
+                    new FontCharacterDescriptor('d'),
+                    new FontCharacterDescriptor('e' ),
+                    new FontCharacterDescriptor('f'),
+                    new FontCharacterDescriptor('g'),
+                    new FontCharacterDescriptor('h'),
+                    new FontCharacterDescriptor('i'),
+                    new FontCharacterDescriptor('j'),
+                    new FontCharacterDescriptor('k' ),
+                    new FontCharacterDescriptor('l'),
+                    new FontCharacterDescriptor('m' ),
+                    new FontCharacterDescriptor('n' ),
+                    new FontCharacterDescriptor('o' ),
+                    new FontCharacterDescriptor('p' ),
+                    new FontCharacterDescriptor('q'),
+                    new FontCharacterDescriptor('r' ),
+                    new FontCharacterDescriptor('s' ),
+                    new FontCharacterDescriptor('t'),
+                    new FontCharacterDescriptor('u' ),
+                    new FontCharacterDescriptor('v' ),
+                    new FontCharacterDescriptor('w'),
+                    new FontCharacterDescriptor('x' ),
+                    new FontCharacterDescriptor('y'),
+                    new FontCharacterDescriptor('z' ),
+                    new FontCharacterDescriptor('{'),
+                    new FontCharacterDescriptor('|'),
+                    new FontCharacterDescriptor('}' ),
+                    new FontCharacterDescriptor('~')
+                };
+          */
+
+
+
 
 
      public static readonly int[,] engFontDescriptors = new int[,]
@@ -328,11 +331,25 @@ namespace WJMIOT
 0x00, 0x00,     0x00, 0xF8, 0x04, 0x01, 0x7E, 0x80, 0x00, 0x00, 0x00,   0xFE, 0xFF, 0x01,   0x04, 0xF8, 0x00, 0x80, 0x7E, 0x01, 0x00, 0x00, 0x00,   0x00, 0x80, 0x80, 0x80, 0x00,
 0x00, 0x80, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
+        public static void TTT()
+        {
+            string a="";
+            string b="";
+            for (int i = 0; i < engFontDescriptors.Length/2; i++)
+            {
+                a += engFontDescriptors[i,0].ToString()+",";
+                b += engFontDescriptors[i,1].ToString()+",";
+            }
+
+            Debug.WriteLine(a);
+            Debug.WriteLine(b);
+
+        }
 
     }
 
 
-    }
+}
 
 
 

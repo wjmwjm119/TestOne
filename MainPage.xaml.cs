@@ -39,7 +39,7 @@ namespace TestOne
         //key 1,2,3 GPIO 5,6,13
 
 
-
+           
 
 
 
@@ -117,9 +117,9 @@ namespace TestOne
 
         public MainPage()
         {
-
+           
             this.InitializeComponent();
-
+//           DisplayFontTable.TTT();
             /*
             timer = new DispatcherTimer();
             timer.Interval = TimeSpan.FromMilliseconds(200);
@@ -241,8 +241,6 @@ namespace TestOne
                 await Task.Delay(10);                /* Wait at least 3uS (We wait 1mS since that is the minimum delay we can specify for Task.Delay() */
                 resetPin.Write(GpioPinValue.High);  /* Bring display out of reset                   */
                 await Task.Delay(100);              /* Wait at least 100mS before sending commands  */
-
-
 
 
 
